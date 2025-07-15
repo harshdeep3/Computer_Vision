@@ -1,0 +1,6 @@
+torch
+torchvision
+matplotlib
+black
+isort
+flake8
