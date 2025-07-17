@@ -3,7 +3,7 @@ import torch
 from tqdm import tqdm
 
 
-def show_image(data, grey_scale=False):
+def show_image(data, class_name, grey_scale=False):
     """
     show the data as an image
 
@@ -12,13 +12,13 @@ def show_image(data, grey_scale=False):
     """
     image, label = data
     print(f"Image shape: {image.shape}")
+
+    image = image.permute(1, 2, 0)  # remove the colour channel dimension
     if grey_scale:
-        plt.imshow(image.squeeze(), cmap="gray")
+        plt.imshow(image, cmap="gray")
     else:
-        plt.imshow(
-            image.squeeze()
-        )  # image shape is [1, 28, 28] (colour channels, height, width)
-    plt.title(label)
+        plt.imshow(image)  # image shape is [1, 28, 28] (colour channels, height, width)
+    plt.title(class_name[label])
     plt.show()
 
 
@@ -32,18 +32,23 @@ def show_gird_of_images(data, class_name, grey_scale=False):
     torch.manual_seed(42)
     fig = plt.figure(figsize=(9, 9))
     rows, cols = 4, 4
+    
     for i in range(1, rows * cols + 1):
         random_idx = torch.randint(0, len(data), size=[1]).item()
         img, label = data[random_idx]
-        plt.title(class_name[label])
+        
+        # Convert from [C, H, W] to [H, W, C]
+        img = img.permute(1, 2, 0)
+        
         fig.add_subplot(rows, cols, i)
         plt.title(class_name[label])
         if grey_scale:
             plt.imshow(img.squeeze(), cmap="gray")
         else:
             plt.imshow(img.squeeze())
-        plt.axis(False)
+        plt.axis("off")
 
+    plt.tight_layout()
     plt.show()
 
 
