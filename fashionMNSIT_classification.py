@@ -51,10 +51,10 @@ if __name__ == "__main__":
     class_name = train_data.classes
 
     # show single image
-    # show_image(train_data[0], True)
+    show_image(train_data[0], class_name)
 
     # show a grid of images
-    # show_gird_of_images(train_data, class_names, False)
+    show_gird_of_images(train_data, class_name)
 
     # hyperparameters
     batch_size = 128
