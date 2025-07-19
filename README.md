@@ -11,3 +11,5 @@ Transfer learning allows us to take the patterns (also called weights) another m
 
 For example, we can take the patterns a computer vision model has learned from datasets such as ImageNet (millions of images of different objects) and use them to power our FoodVision Mini model.
 Or we could take the patterns from a language model (a model that's been through large amounts of text to learn a representation of language) and use them as the basis of a model to classify different text samples.
+
+Using [Pytorch Transfer learning](https://www.learnpytorch.io/06_pytorch_transfer_learning/). 
