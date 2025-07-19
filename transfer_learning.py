@@ -23,7 +23,7 @@ from general_functions import (
 )
 
 
-def change_outlayer(model: nn.Module, num_classes: int) -> nn.Module:
+def change_outlayer(device: str, model: nn.Module, num_classes: int) -> nn.Module:
     """
     Change the output layer of a model to match the number of classes.
 
@@ -48,7 +48,11 @@ def change_outlayer(model: nn.Module, num_classes: int) -> nn.Module:
         bias=True,
     )
 
-    return model
+    # UNFREEZE the classifier
+    for param in model.parameters():
+        param.requires_grad = True
+
+    return model.to(device)
 
 
 if __name__ == "__main__":
@@ -58,31 +62,13 @@ if __name__ == "__main__":
 
     data_path = str(pathlib.Path.cwd() / "data")
 
-    # Create a transforms pipeline manually (required for torchvision < 0.13)
-    manual_transforms = transforms.Compose(
-        [
-            transforms.Resize(
-                (224, 224)
-            ),  # 1. Reshape all images to 224x224 (though some models may require different sizes)
-            transforms.ToTensor(),  # 2. Turn image values to between 0 & 1
-            transforms.Normalize(
-                mean=[
-                    0.485,
-                    0.456,
-                    0.406,
-                ],  # 3. A mean of [0.485, 0.456, 0.406] (across each colour channel)
-                std=[0.229, 0.224, 0.225],
-            ),  # 4. A standard deviation of [0.229, 0.224, 0.225] (across each colour channel),
-        ]
-    )
-
     # Setup training data
     # 60000 training exmaple
     train_data = datasets.CIFAR100(
         root=data_path,  # where to download data to?
         train=True,  # get training data
         download=True,  # download data if it doesn't exist on disk
-        transform=ToTensor(),  # images come as PIL format, we want to turn into Torch tensors
+        transform=ResNet18_Weights.DEFAULT.transforms(),  # images come as PIL format, we want to turn into Torch tensors
         target_transform=None,  # you can transform labels as well
     )
 
@@ -92,17 +78,20 @@ if __name__ == "__main__":
         root=data_path,
         train=False,
         download=True,
-        transform=ToTensor(),  # get test data
+        transform=ResNet18_Weights.DEFAULT.transforms(),  # get test data
     )
+
+    mean = ResNet18_Weights.DEFAULT.transforms().mean
+    std = ResNet18_Weights.DEFAULT.transforms().std
 
     # class names
     class_name = train_data.classes
 
     # show single image
-    show_image(train_data[0], class_name)
+    show_image(train_data[0], class_name, mean=mean, std=std)
 
     # show a grid of images
-    show_gird_of_images(train_data, class_name, False)
+    show_gird_of_images(train_data, class_name, mean=mean, std=std)
 
     # hyperparameters
     batch_size = 128
@@ -127,21 +116,22 @@ if __name__ == "__main__":
     loss_fn = nn.CrossEntropyLoss()
     # the reset18 model expects outlayer to 1000
     # so we need to change the output layer to accept 100 classes
-    model = resnet18(weights=ResNet18_Weights.DEFAULT).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-
-    model = change_outlayer(model, num_classes=len(class_name)).to(device)
+    resent18_model = resnet18(weights=ResNet18_Weights.DEFAULT).to(device)
+    resent18_model = change_outlayer(
+        device, resent18_model, num_classes=len(class_name)
+    )
+    optimizer = torch.optim.Adam(resent18_model.parameters(), lr=lr)
 
     model_file_path = str(pathlib.Path.cwd()) + "\\saved_models\\resnet18_cifar100.pth"
 
     # check if model exists
     if os.path.exists(model_file_path):
         print(f"Loading model from {model_file_path}")
-        model.load_state_dict(torch.load(model_file_path, map_location=device))
+        resent18_model.load_state_dict(torch.load(model_file_path, map_location=device))
     else:
         print(f"Training model model from {model_file_path}")
-        model, loss, acc = train_model(
-            model=model,
+        resent18_model, loss, acc = train_model(
+            model=resent18_model,
             train_dataloader=train_dataloader,
             device=device,
             optimizer=optimizer,
@@ -151,13 +141,13 @@ if __name__ == "__main__":
         )
 
         # save the model
-        torch.save(model.state_dict(), model_file_path)
+        torch.save(resent18_model.state_dict(), model_file_path)
         # plot loss and accuracy
         plot_loss_acc(loss, acc, epochs)
 
     print(
         "Testing -> ",
-        test(model, test_dataloader, loss_fn, accuracy_fn=accuracy_score),
+        test(resent18_model, test_dataloader, loss_fn, accuracy_fn=accuracy_score),
     )
 
     test_samples = []
@@ -167,9 +157,122 @@ if __name__ == "__main__":
         test_labels.append(label)
 
     # Make predictions on test samples with model 2
-    pred_probs = make_predictions(model=model, data=test_samples, device=device)
+    pred_probs = make_predictions(
+        model=resent18_model, data=test_samples, device=device
+    )
 
     # Turn the prediction probabilities into prediction labels by taking the argmax()
     pred_classes = pred_probs.argmax(dim=1)
 
-    show_eval_data_gird_of_images(test_samples, class_name, pred_classes, test_labels)
+    show_eval_data_gird_of_images(
+        test_samples, class_name, pred_classes, test_labels, mean=mean, std=std
+    )
+
+    resenet50_model = resnet50(weights=ResNet50_Weights.DEFAULT).to(device)
+    resenet50_model = change_outlayer(
+        device=device, model=resenet50_model, num_classes=len(class_name)
+    )
+
+    optimizer = torch.optim.Adam(resenet50_model.parameters(), lr=lr)
+
+    model_file_path = str(pathlib.Path.cwd()) + "\\saved_models\\resnet50_cifar100.pth"
+
+    # check if model exists
+    if os.path.exists(model_file_path):
+        print(f"Loading model from {model_file_path}")
+        resenet50_model.load_state_dict(
+            torch.load(model_file_path, map_location=device)
+        )
+    else:
+        print(f"Training model model from {model_file_path}")
+        resenet50_model, loss, acc = train_model(
+            model=resenet50_model,
+            train_dataloader=train_dataloader,
+            device=device,
+            optimizer=optimizer,
+            loss_fn=loss_fn,
+            accuracy_fn=accuracy_score,
+            epochs=epochs,
+        )
+
+        # save the model
+        torch.save(resenet50_model.state_dict(), model_file_path)
+        # plot loss and accuracy
+        plot_loss_acc(loss, acc, epochs)
+
+    print(
+        "Testing -> ",
+        test(resenet50_model, test_dataloader, loss_fn, accuracy_fn=accuracy_score),
+    )
+
+    test_samples = []
+    test_labels = []
+    for sample, label in random.sample(list(test_data), k=9):
+        test_samples.append(sample)
+        test_labels.append(label)
+
+    # Make predictions on test samples with model 2
+    pred_probs = make_predictions(
+        model=resenet50_model, data=test_samples, device=device
+    )
+
+    # Turn the prediction probabilities into prediction labels by taking the argmax()
+    pred_classes = pred_probs.argmax(dim=1)
+
+    show_eval_data_gird_of_images(
+        test_samples, class_name, pred_classes, test_labels, mean=mean, std=std
+    )
+
+    resnet101_model = resnet101(weights=ResNet101_Weights.DEFAULT).to(device)
+    resnet101_model = change_outlayer(
+        device=device, model=resnet101_model, num_classes=len(class_name)
+    )
+    optimizer = torch.optim.Adam(resnet101_model.parameters(), lr=lr)
+
+    model_file_path = str(pathlib.Path.cwd()) + "\\saved_models\\resnet101_cifar100.pth"
+
+    # check if model exists
+    if os.path.exists(model_file_path):
+        print(f"Loading model from {model_file_path}")
+        resnet101_model.load_state_dict(
+            torch.load(model_file_path, map_location=device)
+        )
+    else:
+        print(f"Training model model from {model_file_path}")
+        resnet101_model, loss, acc = train_model(
+            model=resnet101_model,
+            train_dataloader=train_dataloader,
+            device=device,
+            optimizer=optimizer,
+            loss_fn=loss_fn,
+            accuracy_fn=accuracy_score,
+            epochs=epochs,
+        )
+
+        # save the model
+        torch.save(resnet101_model.state_dict(), model_file_path)
+        # plot loss and accuracy
+        plot_loss_acc(loss, acc, epochs)
+
+    print(
+        "Testing -> ",
+        test(resnet101_model, test_dataloader, loss_fn, accuracy_fn=accuracy_score),
+    )
+
+    test_samples = []
+    test_labels = []
+    for sample, label in random.sample(list(test_data), k=9):
+        test_samples.append(sample)
+        test_labels.append(label)
+
+    # Make predictions on test samples with model 2
+    pred_probs = make_predictions(
+        model=resnet101_model, data=test_samples, device=device
+    )
+
+    # Turn the prediction probabilities into prediction labels by taking the argmax()
+    pred_classes = pred_probs.argmax(dim=1)
+
+    show_eval_data_gird_of_images(
+        test_samples, class_name, pred_classes, test_labels, mean=mean, std=std
+    )
