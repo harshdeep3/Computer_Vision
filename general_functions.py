@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import torch
 from tqdm import tqdm
+from typing import Tuple
 
 
 def show_image(data, class_name, grey_scale=False):
@@ -43,16 +44,16 @@ def show_gird_of_images(data, class_name, grey_scale=False):
         fig.add_subplot(rows, cols, i)
         plt.title(class_name[label])
         if grey_scale:
-            plt.imshow(img.squeeze(), cmap="gray")
+            plt.imshow(img, cmap="gray")
         else:
-            plt.imshow(img.squeeze())
+            plt.imshow(img)
         plt.axis("off")
 
     plt.tight_layout()
     plt.show()
 
 
-def show_eval_data_gird_of_images(test_samples, class_name, pred_classes, test_labels):
+def show_eval_data_gird_of_images(test_samples, class_name, pred_classes, test_labels, grey_scale=False):
     """
     show a grid of images
 
@@ -66,9 +67,13 @@ def show_eval_data_gird_of_images(test_samples, class_name, pred_classes, test_l
     for i, sample in enumerate(test_samples):
         # Create a subplot
         plt.subplot(nrows, ncols, i + 1)
-
+        
+        sample = sample.permute(1, 2, 0)  # remove the colour channel dimension
         # Plot the target image
-        plt.imshow(sample.squeeze(), cmap="gray")
+        if grey_scale:
+            plt.imshow(sample, cmap="gray")
+        else:
+            plt.imshow(sample)
 
         # Find the prediction label (in text form, e.g. "Sandal")
         pred_label = class_name[pred_classes[i]]
@@ -97,7 +102,7 @@ def train_model(
     loss_fn: torch.nn.Module,
     accuracy_fn,
     epochs=5,
-):
+) -> Tuple[torch.nn.Module, float, float]:
     """
     Train a model on the FashionMNIST dataset
 
@@ -109,12 +114,16 @@ def train_model(
     Returns:
         model (nn.Module): trained model
     """
-
+    train_acc = []
+    train_loss = []
     # Training loop
     for _ in tqdm(range(epochs)):
 
-        train_loss = 0
-        train_acc = 0
+        epoch_loss = 0
+        epoch_acc = 0
+        
+        all_preds = []
+        all_labels = []
         # Add a loop to loop through training batches
         for batch, (X, y) in enumerate(train_dataloader):
             X = X.to(device)
@@ -125,12 +134,13 @@ def train_model(
 
             # 2. Calculate loss (per batch)
             loss = loss_fn(y_pred, y)
-            train_loss += loss  # accumulatively add up the loss per epoch
+            epoch_loss += loss  # accumulatively add up the loss per epoch
 
             y_pred = y_pred.cpu()
-            y = y.cpu()
-            predicted_classes = y_pred.argmax(dim=1)
-            train_acc += accuracy_fn(y_true=y, y_pred=predicted_classes)
+            predicted_classes = torch.argmax(y_pred, dim=1)
+            
+            all_preds.extend(predicted_classes.numpy())
+            all_labels.extend(y.cpu().numpy())
             # 3. Optimizer zero grad
             optimizer.zero_grad()
 
@@ -141,18 +151,21 @@ def train_model(
             optimizer.step()
 
         # Divide total train loss by length of train dataloader (average loss per batch per epoch)
-        train_loss /= len(train_dataloader)
-        train_acc /= len(train_dataloader)
+        epoch_loss /= len(train_dataloader)
+        epoch_acc = accuracy_fn(all_labels, all_preds)
+        
+        train_loss.append(epoch_loss.item())
+        train_acc.append(epoch_acc)
 
     print(
         "Training -> ",
         {
             "model_name": model.__class__.__name__,  # only works when model was created with a class
-            "model_loss": train_loss.item(),
+            "model_loss": train_loss,
             "model_acc": train_acc,
         },
     )
-    return model
+    return model, train_loss, train_acc
 
 
 def test(
@@ -167,6 +180,9 @@ def test(
     loss, acc = 0, 0
     model.eval()
     device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    all_preds = []
+    all_labels = []
     with torch.inference_mode():
         for X, y in test_dataloader:
             X = X.to(device)
@@ -177,12 +193,15 @@ def test(
 
             predicted_classes = y_pred.argmax(dim=1)
             # Accumulate the loss and accuracy values per batch
+            all_preds.extend(predicted_classes.numpy())
+            all_labels.extend(y.cpu().numpy())
+            
+            # Calculate loss
             loss += loss_fn(y_pred, y)
-            acc += accuracy_fn(y_true=y, y_pred=predicted_classes)
 
         # Scale loss and acc to find the average loss/acc per batch
         loss /= len(test_dataloader)
-        acc /= len(test_dataloader)
+        acc = accuracy_fn(all_labels, all_preds)
 
     return {
         "model_name": model.__class__.__name__,  # only works when model was created with a class
@@ -214,3 +233,34 @@ def make_predictions(model: torch.nn.Module, data: list, device: torch.device):
 
     # Stack the pred_probs to turn list into a tensor
     return torch.stack(pred_probs)
+
+
+def plot_loss_acc(loss, acc, epochs):
+    """
+    Plot the loss and accuracy of the model over epochs.
+
+    Args:
+        loss (list): List of loss values per epoch.
+        acc (list): List of accuracy values per epoch.
+        epochs (int): Number of epochs.
+    """
+    plt.figure(figsize=(12, 5))
+
+    # Plot loss
+    plt.subplot(1, 2, 1)
+    plt.plot(range(epochs), loss, label="Loss", color="blue")
+    plt.title("Loss over epochs")
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss")
+    plt.legend()
+
+    # Plot accuracy
+    plt.subplot(1, 2, 2)
+    plt.plot(range(epochs), acc, label="Accuracy", color="green")
+    plt.title("Accuracy over epochs")
+    plt.xlabel("Epochs")
+    plt.ylabel("Accuracy")
+    plt.legend()
+
+    plt.tight_layout()
+    plt.show()
