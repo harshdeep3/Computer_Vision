@@ -1,5 +1,6 @@
 import pathlib
 import random
+import os
 
 import torch
 import torchvision
@@ -11,7 +12,7 @@ from torchvision.transforms import ToTensor
 
 from general_functions import (make_predictions, show_eval_data_gird_of_images,
                                show_gird_of_images, show_image, test,
-                               train_model)
+                               train_model, plot_loss_acc)
 from FNIST_models import (FashionMNISTModelV0, FashionMNISTModelV1,
                     FashionMNISTModelV2)
 
@@ -83,15 +84,28 @@ if __name__ == "__main__":
     loss_fn = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model_v0.parameters(), lr=lr)
 
-    model_v0 = train_model(
-        model=model_v0,
-        train_dataloader=train_dataloader,
-        device=device,
-        optimizer=optimizer,
-        loss_fn=loss_fn,
-        accuracy_fn=accuracy_score,
-        epochs=epochs,
-    )
+    model_file_path = str(pathlib.Path.cwd()) + "\\saved_models\\model_v0.pth"
+
+    # check if model exists
+    if os.path.exists(model_file_path):
+        print(f"Loading model from {model_file_path}")
+        model_v0.load_state_dict(torch.load(model_file_path, map_location=device))
+    else:
+        print(f"Training model model from {model_file_path}")
+        model_v0, loss, acc = train_model(
+            model=model_v0,
+            train_dataloader=train_dataloader,
+            device=device,
+            optimizer=optimizer,
+            loss_fn=loss_fn,
+            accuracy_fn=accuracy_score,
+            epochs=epochs,
+        )
+
+        # save the model
+        torch.save(model_v0.state_dict(), model_file_path)
+        # plot loss and accuracy
+        plot_loss_acc(loss, acc, epochs)
 
     print(
         "Testing -> ",
@@ -103,15 +117,29 @@ if __name__ == "__main__":
     ).to(device)
 
     optimizer = torch.optim.Adam(model_v1.parameters(), lr=lr)
-    model_v1 = train_model(
-        model=model_v1,
-        train_dataloader=train_dataloader,
-        device=device,
-        optimizer=optimizer,
-        loss_fn=loss_fn,
-        accuracy_fn=accuracy_score,
-        epochs=epochs,
-    )
+    
+    model_file_path = str(pathlib.Path.cwd()) + "\\saved_models\\model_v1.pth"
+    
+    if os.path.exists(model_file_path):
+        print(f"Loading model from {model_file_path}")
+        model_v1.load_state_dict(torch.load(model_file_path, map_location=device))
+    else:
+        print(f"Training model model from {model_file_path}")
+        model_v1, loss, acc = train_model(
+            model=model_v1,
+            train_dataloader=train_dataloader,
+            device=device,
+            optimizer=optimizer,
+            loss_fn=loss_fn,
+            accuracy_fn=accuracy_score,
+            epochs=epochs,
+        )
+
+        # save the model
+        torch.save(model_v1.state_dict(), model_file_path)
+
+        # plot loss and accuracy
+        plot_loss_acc(loss, acc, epochs)
 
     print(
         "Testing -> ",
@@ -124,15 +152,28 @@ if __name__ == "__main__":
 
     optimizer = torch.optim.Adam(model_v2.parameters(), lr=lr)
 
-    model_v2 = train_model(
-        model=model_v2,
-        train_dataloader=train_dataloader,
-        device=device,
-        optimizer=optimizer,
-        loss_fn=loss_fn,
-        accuracy_fn=accuracy_score,
-        epochs=epochs,
-    )
+    model_file_path = str(pathlib.Path.cwd()) + "\\saved_models\\model_v2.pth"
+    
+    if os.path.exists(model_file_path):
+        print(f"Loading model from {model_file_path}")
+        model_v2.load_state_dict(torch.load(model_file_path, map_location=device))
+    else:
+        print(f"Training model model from {model_file_path}")
+        model_v2, loss, acc = train_model(
+            model=model_v2,
+            train_dataloader=train_dataloader,
+            device=device,
+            optimizer=optimizer,
+            loss_fn=loss_fn,
+            accuracy_fn=accuracy_score,
+            epochs=epochs,
+        )
+
+        # save the model
+        torch.save(model_v2.state_dict(), model_file_path)
+
+        # plot loss and accuracy
+        plot_loss_acc(loss, acc, epochs)
 
     print(
         "Testing -> ",
