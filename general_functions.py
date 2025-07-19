@@ -1,10 +1,23 @@
 import matplotlib.pyplot as plt
 import torch
+import numpy as np
 from tqdm import tqdm
 from typing import Tuple
 
 
-def show_image(data, class_name, grey_scale=False):
+def unnormalize_image(img_tensor, mean, std):
+    """
+    Unnormalize a tensor and convert it to a NumPy array for display.
+    """
+    img = img_tensor.clone().detach().cpu()
+    for t, m, s in zip(img, mean, std):
+        t.mul_(s).add_(m)  # Unnormalize: x = x * std + mean
+    img = img.numpy().transpose(1, 2, 0)  # [C, H, W] -> [H, W, C]
+    img = np.clip(img, 0, 1)  # Clamp to [0, 1] for imshow
+    return img
+
+
+def show_image(data, class_name, mean=None, std=None, grey_scale=False):
     """
     show the data as an image
 
@@ -14,7 +27,11 @@ def show_image(data, class_name, grey_scale=False):
     image, label = data
     print(f"Image shape: {image.shape}")
 
-    image = image.permute(1, 2, 0)  # remove the colour channel dimension
+    # Convert from [C, H, W] to [H, W, C]
+    if mean is None and std is None:
+        image = unnormalize_image(image, mean, std)
+    else:
+        image = image.permute(1, 2, 0)
     if grey_scale:
         plt.imshow(image, cmap="gray")
     else:
@@ -23,24 +40,26 @@ def show_image(data, class_name, grey_scale=False):
     plt.show()
 
 
-def show_gird_of_images(data, class_name, grey_scale=False):
+def show_gird_of_images(data, class_name, mean=None, std=None, grey_scale=False):
     """
     show a grid of images
 
     Args:
         data (list): list of data points
     """
-    torch.manual_seed(42)
     fig = plt.figure(figsize=(9, 9))
     rows, cols = 4, 4
-    
+
     for i in range(1, rows * cols + 1):
         random_idx = torch.randint(0, len(data), size=[1]).item()
         img, label = data[random_idx]
-        
+
         # Convert from [C, H, W] to [H, W, C]
-        img = img.permute(1, 2, 0)
-        
+        if mean is None and std is None:
+            img = unnormalize_image(img, mean, std)
+        else:
+            img = img.permute(1, 2, 0)
+
         fig.add_subplot(rows, cols, i)
         plt.title(class_name[label])
         if grey_scale:
@@ -53,7 +72,15 @@ def show_gird_of_images(data, class_name, grey_scale=False):
     plt.show()
 
 
-def show_eval_data_gird_of_images(test_samples, class_name, pred_classes, test_labels, grey_scale=False):
+def show_eval_data_gird_of_images(
+    test_samples,
+    class_name,
+    pred_classes,
+    test_labels,
+    mean=None,
+    std=None,
+    grey_scale=False,
+):
     """
     show a grid of images
 
@@ -67,8 +94,11 @@ def show_eval_data_gird_of_images(test_samples, class_name, pred_classes, test_l
     for i, sample in enumerate(test_samples):
         # Create a subplot
         plt.subplot(nrows, ncols, i + 1)
-        
-        sample = sample.permute(1, 2, 0)  # remove the colour channel dimension
+
+        if mean is None and std is None:
+            sample = unnormalize_image(sample, mean, std)
+        else:
+            sample = sample.permute(1, 2, 0)
         # Plot the target image
         if grey_scale:
             plt.imshow(sample, cmap="gray")
@@ -121,7 +151,7 @@ def train_model(
 
         epoch_loss = 0
         epoch_acc = 0
-        
+
         all_preds = []
         all_labels = []
         # Add a loop to loop through training batches
@@ -138,7 +168,7 @@ def train_model(
 
             y_pred = y_pred.cpu()
             predicted_classes = torch.argmax(y_pred, dim=1)
-            
+
             all_preds.extend(predicted_classes.numpy())
             all_labels.extend(y.cpu().numpy())
             # 3. Optimizer zero grad
@@ -153,7 +183,7 @@ def train_model(
         # Divide total train loss by length of train dataloader (average loss per batch per epoch)
         epoch_loss /= len(train_dataloader)
         epoch_acc = accuracy_fn(all_labels, all_preds)
-        
+
         train_loss.append(epoch_loss.item())
         train_acc.append(epoch_acc)
 
@@ -195,7 +225,7 @@ def test(
             # Accumulate the loss and accuracy values per batch
             all_preds.extend(predicted_classes.numpy())
             all_labels.extend(y.cpu().numpy())
-            
+
             # Calculate loss
             loss += loss_fn(y_pred, y)
 
