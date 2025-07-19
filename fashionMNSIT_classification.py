@@ -10,11 +10,16 @@ from torch.utils.data import DataLoader
 from torchvision import datasets
 from torchvision.transforms import ToTensor
 
-from general_functions import (make_predictions, show_eval_data_gird_of_images,
-                               show_gird_of_images, show_image, test,
-                               train_model, plot_loss_acc)
-from FNIST_models import (FashionMNISTModelV0, FashionMNISTModelV1,
-                    FashionMNISTModelV2)
+from general_functions import (
+    make_predictions,
+    show_eval_data_gird_of_images,
+    show_gird_of_images,
+    show_image,
+    test,
+    train_model,
+    plot_loss_acc,
+)
+from FNIST_models import FashionMNISTModelV0, FashionMNISTModelV1, FashionMNISTModelV2
 
 print(
     f"PyTorch version: {torch.__version__}\ntorchvision version: {torchvision.__version__}"
@@ -117,9 +122,9 @@ if __name__ == "__main__":
     ).to(device)
 
     optimizer = torch.optim.Adam(model_v1.parameters(), lr=lr)
-    
+
     model_file_path = str(pathlib.Path.cwd()) + "\\saved_models\\model_v1.pth"
-    
+
     if os.path.exists(model_file_path):
         print(f"Loading model from {model_file_path}")
         model_v1.load_state_dict(torch.load(model_file_path, map_location=device))
@@ -153,7 +158,7 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(model_v2.parameters(), lr=lr)
 
     model_file_path = str(pathlib.Path.cwd()) + "\\saved_models\\model_v2.pth"
-    
+
     if os.path.exists(model_file_path):
         print(f"Loading model from {model_file_path}")
         model_v2.load_state_dict(torch.load(model_file_path, map_location=device))
