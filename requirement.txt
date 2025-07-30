@@ -1,5 +1,5 @@
-torch
-torchvision
+torch<=2.7.1+cu126
+torchvision<=2.7.1+cu126
 torchinfo
 matplotlib
 black
@@ -7,3 +7,7 @@ isort
 flake8
 tqdm
 scikit-learn
+opencv-python
+opencv-contrib-python
+kaggle
+kagglehub
