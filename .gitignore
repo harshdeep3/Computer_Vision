@@ -1,2 +1,5 @@
 **/data
 *.venv_Computer_Vision
+*.vscode/
+*__pycache__
+*saved_models/
