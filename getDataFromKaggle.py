@@ -31,7 +31,7 @@ def get_kaggle_api(kaggle_json_path: str= None) -> KaggleApi:
     return api
 
 
-def get_data(dataset_name: str, save_path: str, kaggle_json_path: str=None):
+def get_data_from_kaggle(dataset_name: str, save_path: str, kaggle_json_path: str=None):
 
     api = get_kaggle_api(kaggle_json_path)
     # Download latest version
@@ -44,4 +44,4 @@ if __name__ == "__main__":
     dataset_name = "meetnagadia/human-action-recognition-har-dataset"
     save_path = "data/human_action_recognition"
 
-    get_data(dataset_name, save_path)
+    get_data_from_kaggle(dataset_name, save_path)
